@@ -112,8 +112,28 @@ class Scheduler:
         self.model = CpoModel()
         self.build_constraints()
 
-    def build_constraints(self):
+    def build_employee_constraints(self, employee_slice):
+        """
+        Build the constraints for a specific employee
+        """
+        for row in employee_slice:
+            self.model.add(sum(row) >= self.model.employee_min_daily | sum(row) == 0)
+            self.model.add(sum(row) <= self.model.employee_max_daily)
+        
+    def build_day_constraints(self, day_slice):
         pass
+
+    def build_constraints(self):
+        """Build the constraints for the model
+        """
+        # Construct employee shift variables
+        default_shift_schedule = [integer_var(0,1) for _ in range(self.config.n_intervals_in_day)]
+        default_employee = [default_shift_schedule for _ in range(self.config.n_days)]
+        # self.shifts.shape = num employees x num days x num intervals
+        self.shifts = np.array([default_employee for _ in range(self.config.n_employees)])
+        for employee in self.shifts:
+            build_employee_constraints(employee)
+
 
     def solve(self) -> Solution:
         params = CpoParameters(
@@ -124,7 +144,7 @@ class Scheduler:
             # LogVerbosity = "Verbose"
         )
         self.model.set_parameters(params)       
-       
+
         solution = self.model.solve()
         n_fails = solution.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
         if not solution.is_solution():
@@ -182,3 +202,5 @@ def generateVisualizerInput(numEmployees : int, numDays :int,  sched : Schedule 
         print(f"An error occured: {e}")
         
 
+if __name__ == "__main__":
+    model = Scheduler.from_file("./input/7_14.sched")
