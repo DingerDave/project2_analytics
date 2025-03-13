@@ -118,14 +118,20 @@ class Scheduler:
         """
         for employee in self.shifts:
             employee_weekly_sum = 0
-            for day in employee:
 
+            # ASSUMPTION: Assuming there is at least four days according to edstem post (format: [night_shifts (4 days), day_shifts (4 days), evening_shifts (4 days)])
+            # We treat the off-shift as implict again since it will be held up by the constraints from 2.1 combined with this
+            first_four_days_shifts = [[],[],[]]
+            for i, day in enumerate(employee):
+
+                # TODO: Check if this is rewriteable using numpy array functionality
                 # 2.1 - Can only work one shift ----------------------------------------
                 shift_length = self.config.n_intervals_per_shift
                 shifts = [day[i:i+shift_length] for i in range(0, len(day), shift_length)]
 
                 # Create new integer_vars for the shift (idk if there's problems with constantly creating new integer_vars to use)
                 shift_worked = [integer_var(0,1) for i in range(self.config.n_shifts)]
+                
 
                 # For each shift, we add that the shift_worked is 1 if the sum of the shift is greater than 0
                 for i, shift in enumerate(shifts):
@@ -138,10 +144,27 @@ class Scheduler:
                 total_sum = sum(day.tolist())
                 self.model.add((total_sum >= self.config.employee_min_daily) | (total_sum == 0))
                 self.model.add(total_sum <= self.config.employee_max_daily)
-                            
+
+            # 2.3 - Training Requirement ------------------------------------------------
+                if i<4:
+                    # Must add a fourth shift for off-shift
+                    for j in range(len(first_four_days_shifts)):
+                        first_four_days_shifts[j].append(shift_worked[j])
+            
+            # Check that each shift category only has a sum of 1 for the first four days 
+            # (implicitly, this will cause off-shift to hold since there needs to be an off-shift for the sum 
+            # of the first four days to be 1 for each of the 3 explicit shift category)
+            for i in range(0, len(first_four_days_shifts)):
+                self.model.add(sum(first_four_days_shifts) == 1)
+            # ------------------------------------------------------------------------
 
     def build_day_constraints(self):
         for day in range(self.config.n_days):
+
+            # 2.2 - minDailyOperation ------------------------------------------------
+            self.model.add(sum(self.shifts[:,day,:].tolist()) >= self.config.min_daily)
+            # ------------------------------------------------------------------------
+
             for shift in range(self.config.n_shifts-1):
                 # Add the constraints for the shifts
 
@@ -164,6 +187,7 @@ class Scheduler:
 
         self.build_employee_constraints()
         self.build_day_constraints()
+
 
 
     def solve(self) -> Solution:
