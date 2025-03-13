@@ -59,9 +59,9 @@ def visualize(schedule: Schedule):
 
 
 def main(args):
-    set_context()
+    #set_context()
     # sudoku_example() Uncomment to run sudoku example
-    solveAustraliaBinary_example()
+    #solveAustraliaBinary_example()
 
     input_file = Path(args.input_file)
     filename = input_file.name
@@ -77,9 +77,9 @@ def main(args):
     resultdict["Time"] = timer.getElapsed()
     resultdict["Result"] = str(solution.n_fails)
     if solution.is_solution:
-        serialized_schedule = None #Serialize Schedule TODO get model solution
-        # visualize(solution.schedule) Uncomment to see Gant chart
-        # generateVisualizerInput(scheduler.config.n_employees,scheduler.config.n_days,solution.schedule) Uncomment to generate vis file
+        serialized_schedule = solution.schedule #Serialize Schedule TODO get model solution
+        visualize(solution.schedule) # Uncomment to see Gant chart
+        generateVisualizerInput(scheduler.config.n_employees,scheduler.config.n_days,solution.schedule) # Uncomment to generate vis file
         # resultdict["Solution"] = ... TODO  write solution to result dictionary
     print(json.dumps(resultdict))
 

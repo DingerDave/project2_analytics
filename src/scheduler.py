@@ -129,21 +129,25 @@ class Scheduler:
                 shift_length = self.config.n_intervals_per_shift
                 shifts = [day[i:i+shift_length] for i in range(0, len(day), shift_length)]
 
-                # Create new integer_vars for the shift (idk if there's problems with constantly creating new integer_vars to use)
-                shift_worked = [integer_var(0,1) for i in range(self.config.n_shifts)]
-                
-
-                # For each shift, we add that the shift_worked is 1 if the sum of the shift is greater than 0
-                for i, shift in enumerate(shifts):
-                    self.model.add(shift_worked[i] == (sum(shift) > 0))
+                # a shift being worked is represented by a 1 in the array
+                shift_worked = [max(shifts[i].tolist()) for i in range(self.config.n_shifts-1)]
 
                 # Max shifts worked should be 1, otherwise 0 (implicit off-shift)
                 self.model.add(sum(shift_worked) <= 1)
                 # ------------------------------------------------------------------------
                 
+                # make sure the employee works enough every day that they work, and don't work too much
                 total_sum = sum(day.tolist())
                 self.model.add((total_sum >= self.config.employee_min_daily) | (total_sum == 0))
                 self.model.add(total_sum <= self.config.employee_max_daily)
+                
+                # -------------------------------------------
+                # make sure the employee works continuously every day
+                first_on = integer_var(-1, self.config.n_intervals_in_day-1)
+                last_on = integer_var(-1, self.config.n_intervals_in_day-1)
+                self.model.add(first_on <= last_on)
+                for i in range(self.config.n_intervals_in_day):
+                    self.model.add(if_then((first_on <= i) & (i <= last_on), day.tolist()[i] == 1))
 
             # 2.3 - Training Requirement ------------------------------------------------
                 if i<4:
@@ -154,14 +158,15 @@ class Scheduler:
             # (implicitly, this will cause off-shift to hold since there needs to be an off-shift for the sum 
             # of the first four days to be 1 for each of the 3 explicit shift category)
             for i in range(0, len(first_four_days_shifts)):
-                self.model.add(sum(first_four_days_shifts) == 1)
+                self.model.add(sum(first_four_days_shifts[i]) == 1)
             # ------------------------------------------------------------------------
 
     def build_day_constraints(self):
         for day in range(self.config.n_days):
 
             # 2.2 - minDailyOperation ------------------------------------------------
-            self.model.add(sum(self.shifts[:,day,:].tolist()) >= self.config.min_daily)
+            flattened_shifts = self.shifts[:,day,:].flatten()
+            self.model.add(sum(flattened_shifts.tolist()) >= self.config.min_daily)
             # ------------------------------------------------------------------------
 
             for shift in range(self.config.n_shifts-1):
@@ -176,7 +181,7 @@ class Scheduler:
     def build_constraints(self):
         """Build the constraints for the model
         """
-        print(self.config.min_shifts)
+        
         # ASSUMPTION 
         self.config.n_intervals_per_shift = self.config.n_intervals_in_day // (self.config.n_shifts-1)
         # Construct employee shift variables (usage: self.shifts[employee][day][interval])
@@ -226,9 +231,14 @@ class Scheduler:
                 # Get the start and end times for the employee
                 employee_day = [solution[self.shifts[i,j,k]] for k in range(self.config.n_intervals_in_day)]
                 # get the first index with a 1
-                start_time = employee_day.index(1)
-                # get the last index with a 1
-                end_time = len(employee_day) - 1 - employee_day[::-1].index(1)
+                if 1 not in employee_day:
+                    start_time = -1
+                    end_time = -1
+                else:
+                    print(employee_day)
+                    start_time = employee_day.index(1)
+                    # get the last index with a 1
+                    end_time = len(employee_day) - employee_day[::-1].index(1)
                 # Set the schedule
                 employee.append((start_time, end_time))
             schedule.append(employee)
@@ -273,5 +283,5 @@ def generateVisualizerInput(numEmployees : int, numDays :int,  sched : Schedule 
 if __name__ == "__main__":
     model = Scheduler.from_file("./input/7_14.sched")
     solution = model.solve()
-    print(solution)
+    generateVisualizerInput(model.config.n_employees, model.config.n_days, solution.schedule)
     
