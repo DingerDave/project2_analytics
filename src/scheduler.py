@@ -147,7 +147,6 @@ class Scheduler:
 
             # 2.3 - Training Requirement ------------------------------------------------
                 if i<4:
-                    # Must add a fourth shift for off-shift
                     for j in range(len(first_four_days_shifts)):
                         first_four_days_shifts[j].append(shift_worked[j])
             
