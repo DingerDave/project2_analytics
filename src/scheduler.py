@@ -119,6 +119,21 @@ class Scheduler:
         for employee in self.shifts:
             employee_weekly_sum = 0
             for day in employee:
+
+                # 2.1 - Can only work one shift ----------------------------------------
+                shift_length = self.config.n_intervals_per_shift
+                shifts = [day[i:i+shift_length] for i in range(0, len(day), shift_length)]
+
+                # Create new integer_vars for the shift (idk if there's problems with constantly creating new integer_vars to use)
+                shift_worked = [integer_var(0,1) for i in range(self.config.n_shifts)]
+
+                # For each shift, we add that the shift_worked is 1 if the sum of the shift is greater than 0
+                for i, shift in enumerate(shifts):
+                    self.model.add(shift_worked[i] == (sum(shift) > 0))
+
+                # Max shifts worked should be 1, otherwise 0 (implicit off-shift)
+                self.model.add(sum(shift_worked) <= 1)
+                # ------------------------------------------------------------------------
                 
                 total_sum = sum(day.tolist())
                 self.model.add((total_sum >= self.config.employee_min_daily) | (total_sum == 0))
@@ -129,9 +144,12 @@ class Scheduler:
         for day in range(self.config.n_days):
             for shift in range(self.config.n_shifts-1):
                 # Add the constraints for the shifts
+
+                # 2.2 - minDemandDayShift ------------------------------------------------
                 shift_start = shift*self.config.n_intervals_per_shift
                 for interval in range(self.config.n_intervals_per_shift):
                     self.model.add(sum(self.shifts[:,day,shift_start+interval].tolist()) >= self.config.min_shifts[day][shift+1])
+                # ------------------------------------------------------------------------
 
     def build_constraints(self):
         """Build the constraints for the model
@@ -139,7 +157,7 @@ class Scheduler:
         print(self.config.min_shifts)
         # ASSUMPTION 
         self.config.n_intervals_per_shift = self.config.n_intervals_in_day // (self.config.n_shifts-1)
-        # Construct employee shift variables
+        # Construct employee shift variables (usage: self.shifts[employee][day][interval])
         self.shifts = np.array([[[integer_var(0,1) for j in range(self.config.n_intervals_in_day)] \
                         for j in range(self.config.n_days)] \
                             for j in range(self.config.n_employees)])
