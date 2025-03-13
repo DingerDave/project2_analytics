@@ -112,27 +112,40 @@ class Scheduler:
         self.model = CpoModel()
         self.build_constraints()
 
-    def build_employee_constraints(self, employee_slice):
+    def build_employee_constraints(self):
         """
         Build the constraints for a specific employee
         """
-        for row in employee_slice:
-            self.model.add(sum(row) >= self.model.employee_min_daily | sum(row) == 0)
-            self.model.add(sum(row) <= self.model.employee_max_daily)
-        
-    def build_day_constraints(self, day_slice):
-        pass
+        for employee in self.shifts:
+            employee_weekly_sum = 0
+            for day in employee:
+                
+                total_sum = sum(day.tolist())
+                self.model.add((total_sum >= self.config.employee_min_daily) | (total_sum == 0))
+                self.model.add(total_sum <= self.config.employee_max_daily)
+                            
+
+    def build_day_constraints(self):
+        for day in range(self.config.n_days):
+            for shift in range(self.config.n_shifts-1):
+                # Add the constraints for the shifts
+                shift_start = shift*self.config.n_intervals_per_shift
+                for interval in range(self.config.n_intervals_per_shift):
+                    self.model.add(sum(self.shifts[:,day,shift_start+interval].tolist()) >= self.config.min_shifts[day][shift+1])
 
     def build_constraints(self):
         """Build the constraints for the model
         """
+        print(self.config.min_shifts)
+        # ASSUMPTION 
+        self.config.n_intervals_per_shift = self.config.n_intervals_in_day // (self.config.n_shifts-1)
         # Construct employee shift variables
-        default_shift_schedule = [integer_var(0,1) for _ in range(self.config.n_intervals_in_day)]
-        default_employee = [default_shift_schedule for _ in range(self.config.n_days)]
-        # self.shifts.shape = num employees x num days x num intervals
-        self.shifts = np.array([default_employee for _ in range(self.config.n_employees)])
-        for employee in self.shifts:
-            build_employee_constraints(employee)
+        self.shifts = np.array([[[integer_var(0,1) for j in range(self.config.n_intervals_in_day)] \
+                        for j in range(self.config.n_days)] \
+                            for j in range(self.config.n_employees)])
+
+        self.build_employee_constraints()
+        self.build_day_constraints()
 
 
     def solve(self) -> Solution:
@@ -164,7 +177,21 @@ class Scheduler:
             Schedule: An output schedule that can returned
             NOTE: Schedule must be in format [Employee][Days][startTime][EndTime]
         """
-        pass
+        
+        schedule = []
+        for i in range(self.config.n_employees):
+            employee = []
+            for j in range(self.config.n_days):
+                # Get the start and end times for the employee
+                employee_day = [solution[self.shifts[i,j,k]] for k in range(self.config.n_intervals_in_day)]
+                # get the first index with a 1
+                start_time = employee_day.index(1)
+                # get the last index with a 1
+                end_time = len(employee_day) - 1 - employee_day[::-1].index(1)
+                # Set the schedule
+                employee.append((start_time, end_time))
+            schedule.append(employee)
+        return schedule
 
     @staticmethod
     def from_file(f) -> Scheduler:
@@ -204,3 +231,6 @@ def generateVisualizerInput(numEmployees : int, numDays :int,  sched : Schedule 
 
 if __name__ == "__main__":
     model = Scheduler.from_file("./input/7_14.sched")
+    solution = model.solve()
+    print(solution)
+    
