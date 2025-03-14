@@ -1,4 +1,5 @@
 #!/bin/bash
+
 ########################################
 ############# CSCI 2951-O ##############
 ########################################
@@ -37,7 +38,7 @@ for f in $inputFolder*.*
 do
 	fullFileName=$(realpath "$f")
 	echo "Running $fullFileName"
-	timeout $timeLimit ./localrun.sh $fullFileName > output.tmp
+	timeout $timeLimit ./run.sh $fullFileName > output.tmp
 	returnValue="$?"
 	if [[ "$returnValue" = 0 ]]; then 					# Run is successful
 		cat output.tmp | tail -1 >> $logFile				# Record the last line as solution
