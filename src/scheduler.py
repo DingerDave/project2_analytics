@@ -117,8 +117,6 @@ class Scheduler:
         Build the constraints for a specific employee
         """
         for employee in self.shifts:
-            employee_weekly_sum = 0
-
             # ASSUMPTION: Assuming there is at least four days according to edstem post (format: [night_shifts (4 days), day_shifts (4 days), evening_shifts (4 days)])
             # We treat the off-shift as implict again since it will be held up by the constraints from 2.1 combined with this
             first_four_days_shifts = [[],[],[]]
@@ -157,9 +155,17 @@ class Scheduler:
             # Check that each shift category only has a sum of 1 for the first four days 
             # (implicitly, this will cause off-shift to hold since there needs to be an off-shift for the sum 
             # of the first four days to be 1 for each of the 3 explicit shift category)
-            for i in range(0, len(first_four_days_shifts)):
-                self.model.add(sum(first_four_days_shifts[i]) == 1)
+            for j in range(0, len(first_four_days_shifts)):
+                self.model.add(sum(first_four_days_shifts[j]) == 1)
             # ------------------------------------------------------------------------
+
+            # 2.4 - Weekly Constraints ------------------------------------------------
+            if i % 7 == 0:
+                self.model.add(sum(employee[i:i+7].tolist()) >= self.config.employee_min_weekly)
+                self.model.add(sum(employee[i:i+7].tolist()) <= self.config.employee_max_weekly)
+
+            # 2.5 - Night Shift Constraints ----------------------------------------
+            
 
     def build_day_constraints(self):
         for day in range(self.config.n_days):
