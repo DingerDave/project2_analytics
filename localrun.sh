@@ -15,7 +15,7 @@ input=$1
 # source p2_venv/bin/activate
 # change this to point to your local installation
 # CHANGE it back to this value before submitting
-export CP_SOLVER_EXEC="C:/Program Files/IBM/ILOG/CPLEX_Studio2211/cpoptimizer/bin/x64_win64/cpoptimizer.exe"
+#export CP_SOLVER_EXEC="C:/Program Files/IBM/ILOG/CPLEX_Studio2211/cpoptimizer/bin/x64_win64/cpoptimizer.exe"
 # export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"C:/Program Files/IBM/ILOG/CPLEX_Studio2211/cpoptimizer/bin/x64_win64":"C:/Program Files/IBM/ILOG/CPLEX_Studio2211/cpoptimizer/bin/x64_win64"
 
 # run the solver

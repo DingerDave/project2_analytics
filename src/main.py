@@ -9,6 +9,7 @@ from scheduler import Schedule, Scheduler,sudoku_example , generateVisualizerInp
 from model_timer import Timer 
 import json
 import sys
+import numpy as np
 # Stencil created by Anirudh Narsipur February 2023
 # Adapted from code written by Alexander Ding and Anirudh Narsipur
 
@@ -78,9 +79,10 @@ def main(args):
     resultdict["Result"] = str(solution.n_fails)
     if solution.is_solution:
         serialized_schedule = solution.schedule #Serialize Schedule TODO get model solution
-        visualize(solution.schedule) # Uncomment to see Gant chart
-        generateVisualizerInput(scheduler.config.n_employees,scheduler.config.n_days,solution.schedule) # Uncomment to generate vis file
-        # resultdict["Solution"] = ... TODO  write solution to result dictionary
+        #print(serialized_schedule)
+        #visualize(solution.schedule) # Uncomment to see Gant chart
+        #generateVisualizerInput(scheduler.config.n_employees,scheduler.config.n_days,solution.schedule) # Uncomment to generate vis file
+        resultdict["Solution"] =  " ".join([str(time) for time in np.array(serialized_schedule).flatten().tolist()]) # TODO  write solution to result dictionary
     print(json.dumps(resultdict))
 
 if __name__ == "__main__":

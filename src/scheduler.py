@@ -252,7 +252,6 @@ class Scheduler:
                     start_time = -1
                     end_time = -1
                 else:
-                    print(employee_day)
                     start_time = employee_day.index(1)
                     # get the last index with a 1
                     end_time = len(employee_day) - employee_day[::-1].index(1)
