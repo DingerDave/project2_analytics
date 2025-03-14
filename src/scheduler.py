@@ -144,31 +144,13 @@ class Scheduler:
                 self.model.add(total_sum <= self.config.employee_max_daily)
                 
                 # -------------------------------------------
-                # make sure the employee works continuously every day
-                # first_on = integer_var(-1, self.config.n_intervals_in_day-1)
-                # last_on = integer_var(-1, self.config.n_intervals_in_day-1)
-                # self.model.add(first_on <= last_on)
-                # for i in range(self.config.n_intervals_in_day):
-                #     self.model.add(if_then((first_on <= i) & (i <= last_on), day.tolist()[i] == 1))
-
+                
                 # 2.4 - maxTotalNightShift
                 total_night_shifts.append(shift_worked[0]) # 0 is the index for night shift
 
-                # 2.4 - weeklyConstraints ------------------------------------
-                if i % 6 == 0:
-                    self.model.add(sum(employee[i-6:i+1].tolist()) >= self.config.employee_min_weekly)
-                    self.model.add(sum(employee[i-6:i+1].tolist()) <= self.config.employee_max_weekly)
+        
 
-                # Must also check at end in case the total length of days is not exactly a week
-                if i == len(employee)-1:
-                    remaining_days = len(employee) % 7
-                    if remaining_days != 0:
-                        self.model.add(sum(employee[-remaining_days:].tolist()) >= self.config.employee_min_weekly)
-                        self.model.add(sum(employee[-remaining_days:].tolist()) <= self.config.employee_max_weekly)
-                # ------------------------------------------------------------
-
-
-            # 2.3 - Training Requirement ------------------------------------------------
+                # 2.3 - Training Requirement ------------------------------------------------
                 if i<4:
                     for j in range(len(first_four_days_shifts)):
                         first_four_days_shifts[j].append(shift_worked[j])
@@ -180,20 +162,21 @@ class Scheduler:
                 self.model.add(sum(first_four_days_shifts[j]) == 1)
             # ------------------------------------------------------------------------
 
-            # 2.4 - Weekly Constraints ------------------------------------------------
-            # if i % 7 == 0:
-            #     self.model.add(sum(day[i:i+7].tolist()) >= self.config.employee_min_weekly)
-            #     self.model.add(sum(day[i:i+7].tolist()) <= self.config.employee_max_weekly)
-
-            # 2.4 - maxTotalNightShift ------------------------------------------------
+            # # 2.4 - maxTotalNightShift ------------------------------------------------
             self.model.add(sum(total_night_shifts) <= self.config.employee_max_total_night_shifts)
             # ------------------------------------------------------------------------
             
             # 2.4 - maxConsecutiveNightShift ------------------------------------------
-            for i in range(len(total_night_shifts)-self.config.employee_max_consecutive_night_shifts):
+            for j in range(len(total_night_shifts)-self.config.employee_max_consecutive_night_shifts):
                 self.model.add(sum(total_night_shifts[i:i+self.config.employee_max_consecutive_night_shifts]) <= self.config.employee_max_consecutive_night_shifts)
             # ------------------------------------------------------------------------
+            # 2.4 maxWeeklyWork ------------------------------------------------
+            num_weeks = self.config.n_days // 7
             
+            for j in range(num_weeks):
+                employee_hours = sum(employee[j*7:(j+1)*7].flatten().tolist())
+                self.model.add(employee_hours >= self.config.employee_min_weekly)
+                self.model.add(employee_hours <= self.config.employee_max_weekly)
 
     def build_day_constraints(self):
         for day in range(self.config.n_days):
