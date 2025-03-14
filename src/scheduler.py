@@ -143,11 +143,11 @@ class Scheduler:
                 
                 # -------------------------------------------
                 # make sure the employee works continuously every day
-                first_on = integer_var(-1, self.config.n_intervals_in_day-1)
-                last_on = integer_var(-1, self.config.n_intervals_in_day-1)
-                self.model.add(first_on <= last_on)
-                for i in range(self.config.n_intervals_in_day):
-                    self.model.add(if_then((first_on <= i) & (i <= last_on), day.tolist()[i] == 1))
+                # first_on = integer_var(-1, self.config.n_intervals_in_day-1)
+                # last_on = integer_var(-1, self.config.n_intervals_in_day-1)
+                # self.model.add(first_on <= last_on)
+                # for i in range(self.config.n_intervals_in_day):
+                #     self.model.add(if_then((first_on <= i) & (i <= last_on), day.tolist()[i] == 1))
 
             # 2.3 - Training Requirement ------------------------------------------------
                 if i<4:
