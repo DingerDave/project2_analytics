@@ -161,8 +161,8 @@ class Scheduler:
 
             # 2.4 - Weekly Constraints ------------------------------------------------
             if i % 7 == 0:
-                self.model.add(sum(employee[i:i+7].tolist()) >= self.config.employee_min_weekly)
-                self.model.add(sum(employee[i:i+7].tolist()) <= self.config.employee_max_weekly)
+                self.model.add(sum(day[i:i+7].tolist()) >= self.config.employee_min_weekly)
+                self.model.add(sum(day[i:i+7].tolist()) <= self.config.employee_max_weekly)
 
             # 2.5 - Night Shift Constraints ----------------------------------------
             
