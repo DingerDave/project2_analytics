@@ -156,7 +156,7 @@ class Scheduler:
         print(self.shift_end_times)
         # Construct employee shift variables (usage: self.shifts[employee][day][interval])
         self.shifts = np.array([
-                        [(integer_var(-1, self.config.n_intervals_in_day), integer_var(0, self.config.employee_max_daily)) for _ in range(self.config.n_days)]
+                        [(integer_var(0, self.config.n_shifts), integer_var(0, self.config.employee_max_daily)) for _ in range(self.config.n_days)]
                          for _ in range(self.config.n_employees)])
         
         self.build_employee_constraints()
@@ -200,9 +200,11 @@ class Scheduler:
             for j in range(self.config.n_days):
                 # Get the start and end times for the employee
                 
-                start_time =solution[self.shifts[i,j,0]]
+                start_time = solution[self.shifts[i,j,0]]-1
+                
+                
                 # get the last index with a 1
-                end_time = start_time + solution[self.shifts[i,j,1]]
+                end_time = start_time*self.config.n_intervals_per_shift + solution[self.shifts[i,j,1]]
                 # Set the schedule
                 employee.append((start_time, end_time))
             schedule.append(employee)
