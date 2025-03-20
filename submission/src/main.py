@@ -5,7 +5,7 @@ from pathlib import Path
 
 from docplex.cp.config import context
 
-from scheduler import Schedule, Scheduler,sudoku_example , generateVisualizerInput,solveAustraliaBinary_example
+from scheduler_old import Schedule, Scheduler,sudoku_example , generateVisualizerInput,solveAustraliaBinary_example
 from model_timer import Timer 
 import json
 import sys
