@@ -150,10 +150,6 @@ class Scheduler:
         
         # ASSUMPTION 
         self.config.n_intervals_per_shift = self.config.n_intervals_in_day // (self.config.n_shifts-1)
-        self.shift_start_times = [i*self.config.n_intervals_per_shift for i in range(self.config.n_shifts)]
-        self.shift_end_times = [(i+1)*self.config.n_intervals_per_shift for i in range(self.config.n_shifts)]
-        print(self.shift_start_times)
-        print(self.shift_end_times)
         # Construct employee shift variables (usage: self.shifts[employee][day][interval])
         self.shifts = np.array([
                         [(integer_var(0, self.config.n_shifts), integer_var(0, self.config.employee_max_daily)) for _ in range(self.config.n_days)]
