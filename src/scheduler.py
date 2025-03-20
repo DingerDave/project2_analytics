@@ -191,7 +191,19 @@ class Scheduler:
             SearchType="DepthFirst" # Uncomment for part 2
             # LogVerbosity = "Verbose"
         )
-        self.model.set_parameters(params)       
+        self.model.set_parameters(params)
+
+        # TODO: Why is it hanging when this is uncommented below? --------
+        flatShiftsWorkedVars = self.shift_worked.flatten().tolist()
+        varSel = select_smallest(domain_size())
+        valSel = select_smallest(value())
+        min_domain_min = search_phase(flatShiftsWorkedVars, varSel, valSel)
+        self.model.set_search_phases(min_domain_min)
+        # ----------------------------------------------------------------
+      
+
+
+
 
         solution = self.model.solve()
         n_fails = solution.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
