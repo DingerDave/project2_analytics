@@ -119,42 +119,65 @@ class Scheduler:
         ### For each employee
         for em_idx in range(self.config.n_employees):
             ### For each day
-            shift_worked = []
+            employee_shifts_worked = []
             for day_idx in range(self.config.n_days):
-                ### As long as the employee is not off
-                ###   ensure that they are working at least min_daily
-                employee_day = self.shifts[em_idx,day_idx]
-                # Ensure that we start early enough in a shift to be able to work enough hours
-                self.model.add(employee_day[0]%self.config.n_intervals_per_shift <= self.config.n_intervals_per_shift - self.config.employee_min_daily)
-                # Ensure that if we are working, we work enough hours during the shift
-                self.model.add(if_then(employee_day[0] != -1, (employee_day[1] >= self.config.employee_min_daily)))
-                
-                # If the employee duration is 0, then we should have the off_shift
-                self.model.add(if_then(employee_day[0] == -1, employee_day[1] == 0))
-                
-                # Ensure that we don't go above the hours in a day
-                self.model.add(employee_day[0] + employee_day[1] <= self.config.n_intervals_in_day)
+                employee_duration = self.shift_durations[em_idx, day_idx] ### This is an integer of shift duration
 
-                # make sure that the employee works in a single shift
-                self.model.add(employee_day[0] // self.config.n_intervals_per_shift == (employee_day[0] + employee_day[1]) // self.config.n_intervals_per_shift)
-
-                shift_worked.append(binary_var(employee_day[0] == 1)*((employee_day[0]//self.config.n_intervals_per_shift)+1))
-            self.model.add(all_diff(shift_worked[:4]))  
+                # create an index which represents the shift_worked
+                shift_worked = self.shift_worked[em_idx, day_idx] ### This is an integer of shift worked
+                employee_shifts_worked.append(shift_worked)
+                self.model.add(if_then(shift_worked == 0, employee_duration == 0)) # If the employee is off shift, they cannot work
+                self.model.add(if_then(shift_worked != 0, employee_duration >= self.config.employee_min_daily)) # If the employee is not off shift, they must work at least the minimum daily hours
+                
+                # Night Shift Constraints
+                self.model.add(if_then(all(shift == 0 for shift in self.shift_worked[em_idx, day_idx-self.config.employee_max_consecutive_night_shifts:day_idx].tolist()), shift_worked != 0))
+            
+            # Training constraint                 
+            self.model.add(all_diff(employee_shifts_worked[:4]))  
 
     def build_day_constraints(self):
-        pass
+        for day in range(self.config.n_days):
+                # Min number of hours worked on a day
+                num_hours_worked_on_given_day = sum(self.shift_durations[employee][day] for employee in range(self.config.n_employees))
+                self.model.add(num_hours_worked_on_given_day >= self.config.min_daily)
+
+                for shift in range(self.config.n_shifts):
+                    # Min number of employees per shift per day
+                    num_employees_working_shift_on_given_day = sum(self.shift_worked[employee][day] == shift for employee in range(self.config.n_employees))
+                    self.model.add(num_employees_working_shift_on_given_day >= self.config.min_shifts[day][shift])
+
+        # max night shifts
+        for employee in range(self.config.n_employees):
+            employee_total_night_shifts = sum(self.shift_worked[employee][day] == 0 for day in range(self.config.n_days))
+            self.model.add(employee_total_night_shifts <= self.config.employee_max_total_night_shifts)
+                            
+            # Weekly constraints
+            for week_index in range(0, self.config.n_days - 6, 7):
+                total_week_sum_hours = sum(self.shift_durations[employee][week_index:week_index+7].tolist())
+                self.model.add(total_week_sum_hours <= self.config.employee_max_weekly)
+                self.model.add(total_week_sum_hours >= self.config.employee_min_weekly)
+           
+                
 
     def build_constraints(self):
         """Build the constraints for the model
         """
         
+        
         # ASSUMPTION 
         self.config.n_intervals_per_shift = self.config.n_intervals_in_day // (self.config.n_shifts-1)
         # Construct employee shift variables (usage: self.shifts[employee][day][interval])
-        self.shifts = np.array([
-                        [(integer_var(0, self.config.n_shifts), integer_var(0, self.config.employee_max_daily)) for _ in range(self.config.n_days)]
-                         for _ in range(self.config.n_employees)])
+        self.shift_starts = np.array([
+                            [integer_var_list(self.config.n_shifts, 0, 1) for _ in range(self.config.n_days)]
+                                for _ in range(self.config.n_employees)])
+        self.shift_worked = np.array([
+                                [integer_var(0, 3) for _ in range(self.config.n_days)]
+                                for _ in range(self.config.n_employees)])
         
+        self.shift_durations = np.array([
+                                [integer_var(0, self.config.n_intervals_per_shift) for _ in range(self.config.n_days)]
+                                    for _ in range(self.config.n_employees)])
+
         self.build_employee_constraints()
         self.build_day_constraints()
 
@@ -165,7 +188,7 @@ class Scheduler:
             Workers = 1,
             TimeLimit = 300,
             #Do not change the above values 
-            # SearchType="DepthFirst" Uncomment for part 2
+            SearchType="DepthFirst" # Uncomment for part 2
             # LogVerbosity = "Verbose"
         )
         self.model.set_parameters(params)       
@@ -196,11 +219,17 @@ class Scheduler:
             for j in range(self.config.n_days):
                 # Get the start and end times for the employee
                 
-                start_time = solution[self.shifts[i,j,0]]-1
+                start_time = (solution[self.shift_worked[i,j]]-1)
+                
+                if start_time == -1:
+                    employee.append((-1, -1)) # Employee is off shift
+                    continue
+                else:
+                    start_time *= self.config.n_intervals_per_shift
                 
                 
                 # get the last index with a 1
-                end_time = start_time*self.config.n_intervals_per_shift + solution[self.shifts[i,j,1]]
+                end_time = start_time + solution[self.shift_durations[i,j]]
                 # Set the schedule
                 employee.append((start_time, end_time))
             schedule.append(employee)
