@@ -144,9 +144,14 @@ class Scheduler:
                 self.model.add(num_hours_worked_on_given_day >= self.config.min_daily)
 
                 for shift in range(self.config.n_shifts):
+                    if shift == 0:
+                        continue
                     # Min number of employees per shift per day
                     num_employees_working_shift_on_given_day = sum(self.shift_worked[employee][day] == shift for employee in range(self.config.n_employees))
-                    self.model.add(num_employees_working_shift_on_given_day >= self.config.min_shifts[day][shift])
+                    total_employees_per_time = [sum([self.shift_durations[employee][day] >= time for employee in range(self.config.n_employees)])
+                                                for time in range(self.config.employee_min_daily, self.config.employee_max_daily+1)]
+                    for time in total_employees_per_time:
+                        self.model.add(time >= self.config.min_shifts[day][shift])
 
         # max night shifts
         for employee in range(self.config.n_employees):
@@ -154,10 +159,12 @@ class Scheduler:
             self.model.add(employee_total_night_shifts <= self.config.employee_max_total_night_shifts)
                             
             # Weekly constraints
-            for week_index in range(0, self.config.n_days - 6, 7):
+            for week_index in range(0, self.config.n_days, 7):
                 total_week_sum_hours = sum(self.shift_durations[employee][week_index:week_index+7].tolist())
                 self.model.add(total_week_sum_hours <= self.config.employee_max_weekly)
                 self.model.add(total_week_sum_hours >= self.config.employee_min_weekly)
+                number_of_off_shifts = sum([shift == 0 for shift in self.shift_worked[employee][week_index:week_index+7].tolist()])
+                self.model.add(number_of_off_shifts >= 2)
            
                 
 
@@ -171,7 +178,7 @@ class Scheduler:
         # Construct employee shift variables (usage: self.shifts[employee][day][interval])
         
         self.shift_worked = np.array([
-                                [integer_var(0, 3) for _ in range(self.config.n_days)]
+                                [integer_var(0, self.config.n_shifts-1) for _ in range(self.config.n_days)]
                                 for _ in range(self.config.n_employees)])
         
         self.shift_durations = np.array([
