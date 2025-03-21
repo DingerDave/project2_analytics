@@ -27,7 +27,7 @@ inputFolder=$inputFolder/
 fi
 
 # Terminate if the log file already exists
-[ -f $logFile ] && echo "Logfile $logFile already exists, terminating." && exit 1
+[ -f $logFile ] && rm -f $logFile
 
 # Create the log file
 touch $logFile
@@ -35,7 +35,7 @@ touch $logFile
 # Run on every file, get the last line, append to log file
 for f in $inputFolder*.*
 do
-	fullFileName=$(realpath "$f")
+	fullFileName=$f
 	echo "Running $fullFileName"
 	timeout $timeLimit ./localrun.sh $fullFileName > output.tmp
 	returnValue="$?"

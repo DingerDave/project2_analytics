@@ -127,11 +127,14 @@ class Scheduler:
                 shift_worked = self.shift_worked[em_idx, day_idx] ### This is an integer of shift worked
                 employee_shifts_worked.append(shift_worked)
                 self.model.add(if_then(shift_worked == 0, employee_duration == 0)) # If the employee is off shift, they cannot work
-                self.model.add(if_then(shift_worked != 0, employee_duration >= self.config.employee_min_daily)) # If the employee is not off shift, they must work at least the minimum daily hours
+                self.model.add(if_then(shift_worked != 0, employee_duration != 0)) # If the employee is not off shift, they must work at least the minimum daily hours
                 
                 # Night Shift Constraints
-                self.model.add(if_then(all(shift == 0 for shift in self.shift_worked[em_idx, day_idx-self.config.employee_max_consecutive_night_shifts:day_idx].tolist()), shift_worked != 0))
-            
+                
+                if day_idx != 0:
+                    self.model.add(if_then(self.shift_worked[em_idx, day_idx-1] == 0, shift_worked != 0))
+                if day_idx != self.config.n_days - 1:
+                    self.model.add(if_then(self.shift_worked[em_idx, day_idx+1] == 0, shift_worked != 0))
             # Training constraint                 
             self.model.add(all_diff(employee_shifts_worked[:4]))  
 
@@ -167,15 +170,13 @@ class Scheduler:
         # ASSUMPTION 
         self.config.n_intervals_per_shift = self.config.n_intervals_in_day // (self.config.n_shifts-1)
         # Construct employee shift variables (usage: self.shifts[employee][day][interval])
-        self.shift_starts = np.array([
-                            [integer_var_list(self.config.n_shifts, 0, 1) for _ in range(self.config.n_days)]
-                                for _ in range(self.config.n_employees)])
+        
         self.shift_worked = np.array([
                                 [integer_var(0, 3) for _ in range(self.config.n_days)]
                                 for _ in range(self.config.n_employees)])
         
         self.shift_durations = np.array([
-                                [integer_var(0, self.config.n_intervals_per_shift) for _ in range(self.config.n_days)]
+                                [integer_var(domain = [0]+[i for i in range(self.config.employee_min_daily, self.config.employee_max_daily+1)]) for _ in range(self.config.n_days)]
                                     for _ in range(self.config.n_employees)])
 
         self.build_employee_constraints()
@@ -184,23 +185,32 @@ class Scheduler:
 
 
     def solve(self) -> Solution:
+        fail_limit = 100
         params = CpoParameters(
             Workers = 1,
             TimeLimit = 300,
             #Do not change the above values 
-            SearchType="DepthFirst" # Uncomment for part 2
+            #SearchType="DepthFirst", # Uncomment for part 2
             # LogVerbosity = "Verbose"
+            #FailLimit = fail_limit
         )
         self.model.set_parameters(params)
 
         # TODO: Why is it hanging when this is uncommented below? --------
-        flatShiftsWorkedVars = self.shift_worked.flatten().tolist()
-        varSel = select_smallest(domain_size())
-        valSel = select_smallest(value())
-        min_domain_min = search_phase(flatShiftsWorkedVars, varSel, valSel)
-        self.model.set_search_phases(min_domain_min)
+        # flatShiftsWorkedVars = self.shift_worked.flatten().tolist()
+        # varSel = select_smallest(domain_size())
+        # valSel = select_largest(value())
+        # min_domain_min = search_phase(flatShiftsWorkedVars, [varSel, select_random_var()], valSel)
+        # self.model.set_search_phases(min_domain_min)
         # ----------------------------------------------------------------
       
+        # fail_limit = 100
+        # growth_rate = 1.05
+        
+        # while not self.model.solve():
+        #     fail_limit = int(fail_limit * growth_rate)
+            
+        #     self.model.set_parameters({"FailLimit":fail_limit, "RandomSeed": np.random.randint(0,100000)})
 
 
 
