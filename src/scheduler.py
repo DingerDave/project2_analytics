@@ -132,11 +132,10 @@ class Scheduler:
                 self.model.add(if_then(shift_worked != 0, employee_duration != 0)) # If the employee is not off shift, they must work at least the minimum daily hours
                 
                 # Night Shift Constraints
-                
                 if day_idx != 0:
-                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 0 for i in range(max(0, day_idx-self.config.employee_max_consecutive_night_shifts), day_idx)) == self.config.employee_max_consecutive_night_shifts, shift_worked != 0))
+                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 1 for i in range(max(0, day_idx-self.config.employee_max_consecutive_night_shifts), day_idx)) == self.config.employee_max_consecutive_night_shifts, shift_worked != 1))
                 if day_idx != self.config.n_days - 1:
-                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 0 for i in range(day_idx+1, min(day_idx+self.config.employee_max_consecutive_night_shifts+1, self.config.n_days))) == self.config.employee_max_consecutive_night_shifts, shift_worked != 0))
+                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 1 for i in range(day_idx+1, min(day_idx+self.config.employee_max_consecutive_night_shifts+1, self.config.n_days))) == self.config.employee_max_consecutive_night_shifts, shift_worked != 1))
             # Training constraint                 
             self.model.add(all_diff(employee_shifts_worked[:4]))  
 
@@ -147,20 +146,34 @@ class Scheduler:
                 self.model.add(num_hours_worked_on_given_day >= self.config.min_daily)
 
                 for shift in range(self.config.n_shifts):
+                    if shift == 0:
+                        continue
                     # Min number of employees per shift per day
                     num_employees_working_shift_on_given_day = sum(self.shift_worked[employee][day] == shift for employee in range(self.config.n_employees))
                     self.model.add(num_employees_working_shift_on_given_day >= self.config.min_shifts[day][shift])
 
+                    # This is an additional constraint to ensure that the number of employees working at all times is at least the minimum required
+                    #   Not in the handout but we discussed it in our report, CP is fully functional with this constraint
+                    # total_employees_per_time = [sum([self.shift_durations[employee][day] >= time for employee in range(self.config.n_employees)])
+                    #                             for time in range(self.config.employee_min_daily, self.config.employee_max_daily+1)]
+                    # for time in total_employees_per_time:
+                    #     self.model.add(time >= self.config.min_shifts[day][shift])
+
         # max night shifts
         for employee in range(self.config.n_employees):
-            employee_total_night_shifts = sum(self.shift_worked[employee][day] == 0 for day in range(self.config.n_days))
+            employee_total_night_shifts = sum(self.shift_worked[employee][day] == 1 for day in range(self.config.n_days))
             self.model.add(employee_total_night_shifts <= self.config.employee_max_total_night_shifts)
                             
             # Weekly constraints
-            for week_index in range(0, self.config.n_days - 6, 7):
+            for week_index in range(0, self.config.n_days, 7):
                 total_week_sum_hours = sum(self.shift_durations[employee][week_index:week_index+7].tolist())
                 self.model.add(total_week_sum_hours <= self.config.employee_max_weekly)
                 self.model.add(total_week_sum_hours >= self.config.employee_min_weekly)
+
+                # This is an additional constraint to ensure that the employee has at least 2 off shifts in a week
+                #   Not in the handout but we discussed it in our report, CP is fully functional with this constraint
+                # number_of_off_shifts = sum([shift == 0 for shift in self.shift_worked[employee][week_index:week_index+7].tolist()])
+                # self.model.add(number_of_off_shifts >= 2)
            
                 
 
@@ -174,7 +187,7 @@ class Scheduler:
         # Construct employee shift variables (usage: self.shifts[employee][day][interval])
         
         self.shift_worked = np.array([
-                                [integer_var(0, 3) for _ in range(self.config.n_days)]
+                                [integer_var(0, self.config.n_shifts-1) for _ in range(self.config.n_days)]
                                 for _ in range(self.config.n_employees)])
         
         self.shift_durations = np.array([
@@ -214,6 +227,7 @@ class Scheduler:
         fail_limit = self.fail_limit
         growth_rate = self.growth_rate
         solution = self.model.solve()
+        n_fails = 0
         while not solution:
             fail_limit = int(fail_limit * growth_rate)
             
