@@ -107,9 +107,11 @@ class Scheduler:
     OFF_SHIFT = 0
     NIGHT_SHIFT = 1
 
-    def __init__(self, config: CPInstance):
+    def __init__(self, config: CPInstance, fail_limit: int = 800, growth_rate: int = 2):
         self.config = config
         self.model = CpoModel()
+        self.fail_limit = fail_limit
+        self.growth_rate = growth_rate
         self.build_constraints()
 
     def build_employee_constraints(self):
@@ -196,16 +198,21 @@ class Scheduler:
         )
         self.model.set_parameters(params)
 
-        # TODO: Why is it hanging when this is uncommented below? --------
-        flatShiftsWorkedVars = self.shift_worked.flatten().tolist()
-        varSel = select_smallest(domain_size())
-        valSel = select_largest(value())
-        min_domain_min = search_phase(flatShiftsWorkedVars, [varSel, select_random_var()], valSel)
-        self.model.set_search_phases(min_domain_min)
-        # ----------------------------------------------------------------
-      
-        fail_limit = 100
-        growth_rate = 1.05
+        flat_shift_worked_vars = self.shift_worked.flatten().tolist()
+        var_sel = [select_smallest(domain_size()), select_random_var()]
+        val_sel = select_largest(value())
+        shift_worked_phase = search_phase(flat_shift_worked_vars, var_sel, val_sel)
+
+        flat_shift_duration_vars = self.shift_durations.flatten().tolist()
+        var_sel = [select_smallest(domain_size()), select_random_var()]
+        val_sel = select_largest(value())
+        shift_duration_phase = search_phase(flat_shift_duration_vars, var_sel, val_sel)
+
+        my_search_phases = [shift_worked_phase, shift_duration_phase]
+        self.model.set_search_phases(my_search_phases)
+
+        fail_limit = self.fail_limit
+        growth_rate = self.growth_rate
         solution = self.model.solve()
         while not solution:
             fail_limit = int(fail_limit * growth_rate)
@@ -213,9 +220,7 @@ class Scheduler:
             self.model.set_parameters({"FailLimit":fail_limit, "RandomSeed": np.random.randint(0,100000)})
             solution = self.model.solve()
 
-
-
-        # 
+        
         n_fails = solution.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
         if not solution.is_solution():
             return Solution(False, n_fails, None)
@@ -258,10 +263,10 @@ class Scheduler:
         return schedule
 
     @staticmethod
-    def from_file(f) -> Scheduler:
+    def from_file(f, limit=800, rate=2) -> Scheduler:
         # Create a scheduler instance from a config file
         config = CPInstance.load(f)
-        return Scheduler(config)
+        return Scheduler(config, limit, rate)
 
 '''
    * Generate Visualizer Input

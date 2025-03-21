@@ -67,7 +67,7 @@ def main(args):
     input_file = Path(args.input_file)
     filename = input_file.name
    
-    scheduler = Scheduler.from_file(args.input_file)
+    scheduler = Scheduler.from_file(args.input_file, args.fail_limit, args.growth_rate)
     timer = Timer()
     timer.start() 
     solution = scheduler.solve()
@@ -84,9 +84,12 @@ def main(args):
         #generateVisualizerInput(scheduler.config.n_employees,scheduler.config.n_days,solution.schedule) # Uncomment to generate vis file
         resultdict["Solution"] =  " ".join([str(time) for time in np.array(serialized_schedule).flatten().tolist()]) # TODO  write solution to result dictionary
     print(json.dumps(resultdict))
+    # print(resultdict["Time"]) # For the sake of restart_params_checker.py
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("input_file", type=str)
+    parser.add_argument("--fail_limit", type=int, default=2300)
+    parser.add_argument("--growth_rate", type=float, default=2.5)
     args = parser.parse_args()
     main(args)
