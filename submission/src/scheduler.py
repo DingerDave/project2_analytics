@@ -148,10 +148,14 @@ class Scheduler:
                         continue
                     # Min number of employees per shift per day
                     num_employees_working_shift_on_given_day = sum(self.shift_worked[employee][day] == shift for employee in range(self.config.n_employees))
-                    total_employees_per_time = [sum([self.shift_durations[employee][day] >= time for employee in range(self.config.n_employees)])
-                                                for time in range(self.config.employee_min_daily, self.config.employee_max_daily+1)]
-                    for time in total_employees_per_time:
-                        self.model.add(time >= self.config.min_shifts[day][shift])
+                    self.model.add(num_employees_working_shift_on_given_day >= self.config.min_shifts[day][shift])
+
+                    # This is an additional constraint to ensure that the number of employees working at all times is at least the minimum required
+                    #   Not in the handout but we discussed it in our report, CP is fully functional with this constraint
+                    # total_employees_per_time = [sum([self.shift_durations[employee][day] >= time for employee in range(self.config.n_employees)])
+                    #                             for time in range(self.config.employee_min_daily, self.config.employee_max_daily+1)]
+                    # for time in total_employees_per_time:
+                    #     self.model.add(time >= self.config.min_shifts[day][shift])
 
         # max night shifts
         for employee in range(self.config.n_employees):
@@ -163,8 +167,11 @@ class Scheduler:
                 total_week_sum_hours = sum(self.shift_durations[employee][week_index:week_index+7].tolist())
                 self.model.add(total_week_sum_hours <= self.config.employee_max_weekly)
                 self.model.add(total_week_sum_hours >= self.config.employee_min_weekly)
-                number_of_off_shifts = sum([shift == 0 for shift in self.shift_worked[employee][week_index:week_index+7].tolist()])
-                self.model.add(number_of_off_shifts >= 2)
+
+                # This is an additional constraint to ensure that the employee has at least 2 off shifts in a week
+                #   Not in the handout but we discussed it in our report, CP is fully functional with this constraint
+                # number_of_off_shifts = sum([shift == 0 for shift in self.shift_worked[employee][week_index:week_index+7].tolist()])
+                # self.model.add(number_of_off_shifts >= 2)
            
                 
 
