@@ -130,11 +130,10 @@ class Scheduler:
                 self.model.add(if_then(shift_worked != 0, employee_duration != 0)) # If the employee is not off shift, they must work at least the minimum daily hours
                 
                 # Night Shift Constraints
-                
                 if day_idx != 0:
-                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 0 for i in range(max(0, day_idx-self.config.employee_max_consecutive_night_shifts), day_idx)) == self.config.employee_max_consecutive_night_shifts, shift_worked != 0))
+                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 1 for i in range(max(0, day_idx-self.config.employee_max_consecutive_night_shifts), day_idx)) == self.config.employee_max_consecutive_night_shifts, shift_worked != 1))
                 if day_idx != self.config.n_days - 1:
-                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 0 for i in range(day_idx+1, min(day_idx+self.config.employee_max_consecutive_night_shifts+1, self.config.n_days))) == self.config.employee_max_consecutive_night_shifts, shift_worked != 0))
+                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 1 for i in range(day_idx+1, min(day_idx+self.config.employee_max_consecutive_night_shifts+1, self.config.n_days))) == self.config.employee_max_consecutive_night_shifts, shift_worked != 1))
             # Training constraint                 
             self.model.add(all_diff(employee_shifts_worked[:4]))  
 
@@ -151,7 +150,7 @@ class Scheduler:
 
         # max night shifts
         for employee in range(self.config.n_employees):
-            employee_total_night_shifts = sum(self.shift_worked[employee][day] == 0 for day in range(self.config.n_days))
+            employee_total_night_shifts = sum(self.shift_worked[employee][day] == 1 for day in range(self.config.n_days))
             self.model.add(employee_total_night_shifts <= self.config.employee_max_total_night_shifts)
                             
             # Weekly constraints
@@ -213,7 +212,7 @@ class Scheduler:
             
             self.model.set_parameters({"FailLimit":fail_limit, "RandomSeed": np.random.randint(0,100000)})
             solution = self.model.solve()
-            n_fails += self.model.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
+            n_fails = solution.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
 
         if not solution.is_solution():
             return Solution(False, n_fails, None)
