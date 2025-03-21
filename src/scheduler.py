@@ -207,16 +207,14 @@ class Scheduler:
         fail_limit = 100
         growth_rate = 1.05
         solution = self.model.solve()
+        n_fails = 0
         while not solution:
             fail_limit = int(fail_limit * growth_rate)
             
             self.model.set_parameters({"FailLimit":fail_limit, "RandomSeed": np.random.randint(0,100000)})
             solution = self.model.solve()
+            n_fails += self.model.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
 
-
-
-        # 
-        n_fails = solution.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
         if not solution.is_solution():
             return Solution(False, n_fails, None)
         else:
