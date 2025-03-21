@@ -134,7 +134,7 @@ class Scheduler:
                 if day_idx != 0:
                     self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 0 for i in range(max(0, day_idx-self.config.employee_max_consecutive_night_shifts), day_idx)) == self.config.employee_max_consecutive_night_shifts, shift_worked != 0))
                 if day_idx != self.config.n_days - 1:
-                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 0 for i in range(day_idx, min(self.config.n_days, day_idx+self.config.employee_max_consecutive_night_shifts))) == self.config.employee_max_consecutive_night_shifts, shift_worked != 0))
+                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 0 for i in range(day_idx+1, min(day_idx+self.config.employee_max_consecutive_night_shifts+1, self.config.n_days))) == self.config.employee_max_consecutive_night_shifts, shift_worked != 0))
             # Training constraint                 
             self.model.add(all_diff(employee_shifts_worked[:4]))  
 
@@ -190,32 +190,32 @@ class Scheduler:
             Workers = 1,
             TimeLimit = 300,
             #Do not change the above values 
-            #SearchType="DepthFirst", # Uncomment for part 2
+            SearchType="DepthFirst", # Uncomment for part 2
             # LogVerbosity = "Verbose"
-            #FailLimit = fail_limit
+            FailLimit = fail_limit
         )
         self.model.set_parameters(params)
 
         # TODO: Why is it hanging when this is uncommented below? --------
-        # flatShiftsWorkedVars = self.shift_worked.flatten().tolist()
-        # varSel = select_smallest(domain_size())
-        # valSel = select_largest(value())
-        # min_domain_min = search_phase(flatShiftsWorkedVars, [varSel, select_random_var()], valSel)
-        # self.model.set_search_phases(min_domain_min)
+        flatShiftsWorkedVars = self.shift_worked.flatten().tolist()
+        varSel = select_smallest(domain_size())
+        valSel = select_largest(value())
+        min_domain_min = search_phase(flatShiftsWorkedVars, [varSel, select_random_var()], valSel)
+        self.model.set_search_phases(min_domain_min)
         # ----------------------------------------------------------------
       
-        # fail_limit = 100
-        # growth_rate = 1.05
-        
-        # while not self.model.solve():
-        #     fail_limit = int(fail_limit * growth_rate)
-            
-        #     self.model.set_parameters({"FailLimit":fail_limit, "RandomSeed": np.random.randint(0,100000)})
-
-
-
-
+        fail_limit = 100
+        growth_rate = 1.05
         solution = self.model.solve()
+        while not solution:
+            fail_limit = int(fail_limit * growth_rate)
+            
+            self.model.set_parameters({"FailLimit":fail_limit, "RandomSeed": np.random.randint(0,100000)})
+            solution = self.model.solve()
+
+
+
+        # 
         n_fails = solution.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
         if not solution.is_solution():
             return Solution(False, n_fails, None)
