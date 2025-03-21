@@ -107,7 +107,7 @@ class Scheduler:
     OFF_SHIFT = 0
     NIGHT_SHIFT = 1
 
-    def __init__(self, config: CPInstance, fail_limit: int = 800, growth_rate: int = 2):
+    def __init__(self, config: CPInstance, fail_limit: int = 2300, growth_rate: int = 2.5):
         self.config = config
         self.model = CpoModel()
         self.fail_limit = fail_limit
@@ -233,6 +233,7 @@ class Scheduler:
             
             self.model.set_parameters({"FailLimit":fail_limit, "RandomSeed": np.random.randint(0,100000)})
             solution = self.model.solve()
+            n_fails = solution.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
 
         
         n_fails = solution.get_solver_info(CpoSolverInfos.NUMBER_OF_FAILS)
@@ -277,7 +278,7 @@ class Scheduler:
         return schedule
 
     @staticmethod
-    def from_file(f, limit=800, rate=2) -> Scheduler:
+    def from_file(f, limit=2300, rate=2.5) -> Scheduler:
         # Create a scheduler instance from a config file
         config = CPInstance.load(f)
         return Scheduler(config, limit, rate)
