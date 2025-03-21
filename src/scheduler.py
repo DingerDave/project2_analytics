@@ -132,9 +132,9 @@ class Scheduler:
                 # Night Shift Constraints
                 
                 if day_idx != 0:
-                    self.model.add(if_then(self.shift_worked[em_idx, day_idx-1] == 0, shift_worked != 0))
+                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 0 for i in range(max(0, day_idx-self.config.employee_max_consecutive_night_shifts), day_idx)) == self.config.employee_max_consecutive_night_shifts, shift_worked != 0))
                 if day_idx != self.config.n_days - 1:
-                    self.model.add(if_then(self.shift_worked[em_idx, day_idx+1] == 0, shift_worked != 0))
+                    self.model.add(if_then(sum(self.shift_worked[em_idx, i] == 0 for i in range(day_idx, min(self.config.n_days, day_idx+self.config.employee_max_consecutive_night_shifts))) == self.config.employee_max_consecutive_night_shifts, shift_worked != 0))
             # Training constraint                 
             self.model.add(all_diff(employee_shifts_worked[:4]))  
 
